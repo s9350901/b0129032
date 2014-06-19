@@ -1,0 +1,240 @@
+# Wormy (a Nibbles clone)
+# By Al Sweigart al@inventwithpython.com
+# http://inventwithpython.com/pygame
+# Released under a "Simplified BSD" license
+
+import random, pygame, sys
+from pygame.locals import *
+
+每秒英尺 = 15
+視窗寬 = 640
+視窗高 = 480
+細胞尺寸 = 20
+assert 視窗寬 % 細胞尺寸 == 0, "Window width must be a multiple of cell size."
+assert 視窗高 % 細胞尺寸== 0, "Window height must be a multiple of cell size."
+細胞寬 = int(視窗寬 / 細胞尺寸)
+細胞高 = int(視窗高 / 細胞尺寸)
+
+#             R    G    B  決定顏色
+白色    = (255, 255, 255)
+黑色    = (  0,   0,   0)
+紅色      = (255,   0,   0)
+綠色     = (  0, 255,   0)
+深綠色 = (  0, 155,   0)
+深褐色  = ( 40,  40,  40)
+背景顏色 = 黑色
+
+往上 = 'up'
+往下= 'down'
+往左 = 'left'
+往右 = 'right'
+
+頭 = 0 # syntactic sugar: index of the worm's head
+
+啟動=     pygame.init
+鐘類=     pygame.time.Clock
+幕設大小= pygame.display.set_mode
+幕設標題= pygame.display.set_caption
+字型類=   pygame.font.Font
+事件取得= pygame.event.get
+結束=     pygame.quit
+離開=     sys.exit
+範圍=     range
+畫方形=   pygame.draw.rect
+幕更新=   pygame.display.update
+方塊類=   pygame.Rect
+時間等待= pygame.time.wait
+真=  True
+格子大小= random.randint
+旋轉方法= pygame.transform.rotate
+長度= len
+格子函式= pygame.draw.line
+
+def 主程式():
+    global 每秒英尺的時間, 展示視窗, 字體
+
+    啟動()
+    每秒英尺的時間 = 鐘類()
+    展示視窗 = 幕設大小((視窗寬, 視窗高))
+    字體 = 字型類('freesansbold.ttf', 18)
+    幕設標題('Wormy')
+
+
+    顯示開始視窗()
+    while 真:
+        開始遊戲()
+        顯示遊戲結束視窗()
+
+
+def 開始遊戲():
+    # 設定隨機遊戲開始點
+    起始x = random.randint(5, 細胞寬 - 6)
+    起始y = random.randint(5, 細胞高 - 6)
+    蟲座標 = [{'x': 起始x,     'y': 起始y},
+                  {'x': 起始x - 1, 'y': 起始y},
+                  {'x': 起始x - 2, 'y': 起始y}]
+    方向 = 往右
+
+    # 蘋果隨機出現
+    蘋果 = 取得隨機位置()
+
+    while 真: # 主遊戲迴圈
+        for 事件 in 事件取得(): # 事件處理迴圈
+            if 事件.type == QUIT:
+                終止()
+            elif 事件.type == KEYDOWN:
+                if (事件.key == K_LEFT or 事件.key == K_a) and 方向  != 往右:
+                    方向  = 往左
+                elif (事件.key == K_RIGHT or 事件.key == K_d) and 方向  != 往左:
+                    方向  = 往右
+                elif (事件.key == K_UP or 事件.key == K_w) and 方向  != 往下:
+                    方向  = 往上
+                elif (事件.key == K_DOWN or 事件.key == K_s) and 方向  != 往上:
+                    方向  = 往下
+                elif 事件.key == K_ESCAPE:
+                    終止()
+
+        # 檢查蟲是否在邊界撞到自己 
+        if 蟲座標[頭]['x'] == -1 or 蟲座標[頭]['x'] == 細胞寬 or 蟲座標[頭]['y'] == -1 or 蟲座標[頭]['y'] == 細胞高:
+            return # 遊戲結束
+        for 蟲身體 in 蟲座標[1:]:
+            if 蟲身體['x'] == 蟲座標[頭]['x'] and 蟲身體['y'] == 蟲座標[頭]['y']:
+                return # 遊戲結束
+
+        # 檢查蟲是否吃到蘋果
+        if 蟲座標[頭]['x'] == 蘋果['x'] and 蟲座標[頭]['y'] == 蘋果['y']:
+            # 不行移除蟲的尾巴部分
+            蘋果 = 取得隨機位置() # 設定新的蘋果位置
+        else:
+            del 蟲座標[-1] # 移除蟲的尾巴
+
+        # 利用移動來改變蟲的方向
+        if 方向 == 往上:
+            新的頭 = {'x': 蟲座標[頭]['x'], 'y': 蟲座標[頭]['y'] - 1}
+        elif 方向 == 往下:
+            新的頭 = {'x': 蟲座標[頭]['x'], 'y': 蟲座標[頭]['y'] + 1}
+        elif 方向 == 往左:
+            新的頭 = {'x': 蟲座標[頭]['x'] - 1, 'y': 蟲座標[頭]['y']}
+        elif 方向 == 往右:
+            新的頭 = {'x': 蟲座標[頭]['x'] + 1, 'y': 蟲座標[頭]['y']}
+        蟲座標.insert(0, 新的頭)
+        展示視窗.fill(背景顏色)
+        畫坐標網格()
+        畫蟲(蟲座標)
+        畫蘋果(蘋果)
+        顯示分數(len(蟲座標) - 3)
+        幕更新()
+        每秒英尺的時間.tick(每秒英尺)
+
+def 任意鍵進入遊戲():
+    按鍵視窗 = 字體.render('Press a key to play.', 真, 深褐色)
+    按鍵方格 = 按鍵視窗.get_rect()
+    按鍵方格.topleft = (視窗寬 - 200, 視窗高 - 30)
+    展示視窗.blit(按鍵視窗, 按鍵方格)
+
+
+def 檢查任意鍵():
+    if 長度(事件取得(QUIT)) > 0:
+        終止()
+
+    放開按鍵事件 = 事件取得(KEYUP)
+    if 長度(放開按鍵事件) == 0:
+        return None
+    if 放開按鍵事件[0].key == K_ESCAPE:
+        終止()
+    return 放開按鍵事件[0].key
+
+
+def 顯示開始視窗():
+    標題字體 = 字型類('freesansbold.ttf', 10)
+    標體字1 = 標題字體.render('Wormy!', 真, 白色, 深綠色)
+    標體字2 = 標題字體.render('Wormy!', 真, 綠色)
+
+    規模1 = 0
+    規模2 = 0
+    while 真:
+        展示視窗.fill(背景顏色)
+        旋轉視窗1 = 旋轉方法(標體字1, 規模1)
+        旋轉方格1 = 旋轉視窗1.get_rect()
+        旋轉方格1.center = (視窗寬 / 2, 視窗高 / 2)
+        展示視窗.blit(旋轉視窗1, 旋轉方格1)
+
+        旋轉視窗2 = 旋轉方法(標體字2, 規模2)
+        旋轉方格2 = 旋轉視窗2.get_rect()
+        旋轉方格2.center = (視窗寬 / 2, 視窗高 / 2)
+        展示視窗.blit(旋轉視窗2, 旋轉方格2)
+
+        任意鍵進入遊戲()
+
+        if  檢查任意鍵():
+            事件取得 # 清除事件
+            return
+        
+        幕更新()
+        每秒英尺的時間.tick(每秒英尺)
+        規模1 += 3 # 每3程度旋轉一框架
+        規模2 += 7 # 每7程度旋轉一框架
+
+def 終止():
+    結束()
+    離開()
+
+
+def 取得隨機位置():
+    return {'x': random.randint(0, 細胞寬 - 1), 'y': random.randint(0, 細胞高 - 1)}
+
+
+def 顯示遊戲結束視窗():
+    視窗字體 = 字型類('freesansbold.ttf', 150)
+    遊戲顏色 = 視窗字體.render('Game', 真, 白色)
+    結束顏色 = 視窗字體.render('Over', 真, 白色)
+    遊戲方格 = 遊戲顏色.get_rect()
+    結束方格 = 結束顏色.get_rect()
+    遊戲方格.midtop = (視窗寬/ 2, 10)
+    結束方格.midtop = (視窗寬 / 2, 遊戲方格.height + 10 + 25)
+
+    展示視窗.blit(遊戲顏色, 遊戲方格)
+    展示視窗.blit(結束顏色, 結束方格)
+    任意鍵進入遊戲()
+    幕更新()
+    時間等待(500)
+    檢查任意鍵() # 清除事件隊列中的任何按鍵
+
+    while 真:
+        if 檢查任意鍵():
+            取得事件() # 清除事件
+            return
+
+def 顯示分數(分數):
+    分數字體 = 字體.render('Score: %s' % (分數), 真, 白色)
+    分數方格 = 分數字體.get_rect()
+    分數方格.topleft = (視窗寬 - 120, 10)
+    展示視窗.blit(分數字體,  分數方格)
+
+
+def 畫蟲(蟲坐標):
+    for 坐標 in 蟲坐標:
+        x = 坐標['x'] * 細胞尺寸
+        y = 坐標['y'] * 細胞尺寸
+        蟲部分 = 方塊類(x, y, 細胞尺寸, 細胞尺寸)
+        畫方形(展示視窗, 深綠色, 蟲部分)
+        蟲內部分 = 方塊類(x + 4, y + 4, 細胞尺寸 - 8, 細胞尺寸 - 8)
+        畫方形(展示視窗, 綠色, 蟲內部分)
+
+
+def 畫蘋果(坐標):
+    x = 坐標['x'] * 細胞尺寸
+    y = 坐標['y'] * 細胞尺寸
+    蘋果框框 = 方塊類(x, y, 細胞尺寸, 細胞尺寸)
+    畫方形(展示視窗, 紅色, 蘋果框框)
+
+
+def 畫坐標網格():
+    for x in 範圍(0, 視窗寬, 細胞尺寸): # 畫垂直線
+        pygame.draw.line(展示視窗, 深褐色, (x, 0), (x, 視窗高))
+    for y in 範圍(0, 視窗高, 細胞尺寸): # 畫水平線
+        格子函式(展示視窗, 深褐色, (0, y), (視窗寬, y))
+
+
+if __name__ == '__main__':
+    主程式()
